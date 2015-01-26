@@ -1,5 +1,6 @@
 import theano
 import theano.tensor as T
+import numpy as np
 
 def sgd(params, grads, lr=0.01):
 	updates = [(p, p - lr * g) for p, g in zip(params, grads)]
@@ -17,4 +18,13 @@ def rmsprop(params, grads, lr=0.001, rho=0.9, epsilon=1e-6):
 	
 	return updates
 
-#def adagrad(params, grads, )
+def adagrad(params, grads, lr=1.0, epsilon=1e-6):
+	accs = [theano.shared(np.zeros(param.get_value().shape, dtype=theano.config.floatX)) for param in params]
+	
+	updates = []
+	for param_i, grad_i, acc_i in zip(params, grads, accs):
+		acc_i_new = acc_i + grad_i**2
+		updates.append((acc_i, acc_i_new))
+		updates.append((param_i, param_i - lr * grad_i / T.sqrt(acc_i_new + epsilon)))
+
+	return updates

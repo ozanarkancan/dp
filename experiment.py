@@ -59,63 +59,52 @@ if __name__ == "__main__":
 	x = T.matrix('x')
 	y = T.ivector('y')
 	
+	rng = np.random.RandomState()
+	srng = T.shared_randomstreams.RandomStreams(rng.randint(999999))
+
 	layers = []
 
-	layer0 = Layer(x, x_trn.shape[1], hidden[0])
-	layers.append(layer0)
+	input_layer = InputLayer(x, srng)
+
+	layer1 = Layer(input_layer.output, input_layer.d_output, x_trn.shape[1], hidden[0], srng)
+	layers.append(layer1)
 
 	for i in range(len(hidden) - 1):
-		layer = Layer(layers[-1].output, layers[-1].n_out, hidden[i + 1])
+		layer = Layer(layers[-1].output, layers[-1].d_output, layers[-1].n_out, hidden[i + 1], srng)
 		layers.append(layer)
 	
-	layer_out = OutputLayer(layers[-1].output, layers[-1].n_out, num_classes)
-	layers.append(layer_out)
+	output_layer = OutputLayer(layers[-1].output, layers[-1].d_output, layers[-1].n_out, num_classes)
+	layers.append(output_layer)
 
 	params = []
 	for l in layers:
-		print (l.n_in, l.n_out)
 		params += l.params
 
-	cost = layers[-1].loss(y)
-	errors = layers[-1].error
-
-	#train_x, train_y = shared_dataset([
-	#	np.asarray(np.random.random((ms, x_trn.shape[1])), dtype='float32'),
-	#	np.asarray(np.random.randint(num_classes, ms, 1), dtype='int32')
-	#])
-
-	#valid_x, valid_y = shared_dataset([
-	#	np.asarray(x_dev, dtype='float32'),
-	#	np.asarray(y_dev, dtype='int32')
-	#])
+	d_loss = layers[-1].d_loss(y)
+	d_error = layers[-1].d_error(y)
+	loss = layers[-1].loss(y)
+	error = layers[-1].error(y)
 
 	print "...building the model"
-
-	acc_err = theano.function(
+	
+	test_model = theano.function(
 		inputs = [x, y],
-		outputs = errors(y),
+		outputs = [error, loss]
 		)
 	
-	loss_err = theano.function(
-		inputs = [x, y],
-		outputs = cost
-		)
-	
-	both_err = theano.function(
-		inputs = [x, y],
-		outputs = [errors(y), cost]
-		)
-	
-	grads = T.grad(cost, params)
+	grads = T.grad(d_loss, params)
 
 	if opt == "rmsprop":
 		updates = rmsprop(params, grads)
+	elif opt == "adagrad":
+		print "adagrad"
+		updates = adagrad(params, grads)
 	else:
 		updates = sgd(params, grads)
 
 	train_model = theano.function(
 		inputs = [x, y],
-		outputs = cost,
+		outputs = [d_error, d_loss],
 		updates = updates
 		)
 	
@@ -126,20 +115,21 @@ if __name__ == "__main__":
 
 	for i in xrange(epochs):
 		start = time.time()
-		costs = [train_model(x_trn[index * ms : (index + 1) * ms, :],\
+		
+		trn_acc_errs = []
+		trn_losses = []
+		
+		errs = [train_model(x_trn[index * ms : (index + 1) * ms, :],\
 				y_trn[index * ms : (index + 1) * ms, :].reshape(ms, )) for index in xrange(n_train_batches)]
 		
-		avg_trn_loss = np.mean(costs)
+		for e in errs:
+			trn_acc_errs.append(e[0])
+			trn_losses.append(e[1])
 
-		trn_acc_errs = [acc_err(x_trn[index * ms : (index + 1) * ms, :],\
-				y_trn[index * ms : (index + 1) * ms, :].reshape(ms, )) for index in xrange(n_train_batches)]
 		avg_trn_err = np.mean(trn_acc_errs)
-
-		#dev_losses = [loss_err(x_dev[index * ms : (index + 1) * ms, :],\
-		#		y_dev[index * ms : (index + 1) * ms, :].reshape(ms, )) for index in xrange(n_valid_batches)]
-		#avg_dev_loss = np.mean(dev_losses)
+		avg_trn_loss = np.mean(trn_losses)
 	
-		errs = [both_err(x_dev[index * ms : (index + 1) * ms, :],\
+		errs = [test_model(x_dev[index * ms : (index + 1) * ms, :],\
 				y_dev[index * ms : (index + 1) * ms, :].reshape(ms, )) for index in xrange(n_valid_batches)]
 
 		dev_acc_errs = []
@@ -153,5 +143,5 @@ if __name__ == "__main__":
 		avg_dev_loss = np.mean(dev_losses)
 		
 		end = time.time()
-		print "Epoch: %i\ntrain loss: %f\ntrain err: %f\ndev loss: %f\ndev error: %f\nRunning Time: %f seconds\n" % (i + 1, avg_trn_loss, avg_trn_err, avg_dev_loss, avg_dev_err, end - start)
+		print "Epoch: %i\ntrain loss: %f\ntrain error: %f\ndev loss: %f\ndev error: %f\nRunning Time: %f seconds\n" % (i + 1, avg_trn_loss, avg_trn_err, avg_dev_loss, avg_dev_err, end - start)
 	
