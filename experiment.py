@@ -43,6 +43,9 @@ if __name__ == "__main__":
 	hidden = args['hidden']
 	epochs = args['epoch']
 
+	print "Parameters:"
+	print args
+
 	print "...loading data"
 	f = h5py.File(data_path, 'r')
 	x_trn = f.get('x_trn')
@@ -113,6 +116,9 @@ if __name__ == "__main__":
 
 	print "...training the model"
 
+	best_epoch = 0
+	best_val_err = 1
+
 	for i in xrange(epochs):
 		start = time.time()
 		
@@ -143,5 +149,10 @@ if __name__ == "__main__":
 		avg_dev_loss = np.mean(dev_losses)
 		
 		end = time.time()
+		if avg_dev_err < best_val_err:
+			best_val_err = avg_dev_err
+			best_epoch = i + 1
 		print "Epoch: %i\ntrain loss: %f\ntrain error: %f\ndev loss: %f\ndev error: %f\nRunning Time: %f seconds\n" % (i + 1, avg_trn_loss, avg_trn_err, avg_dev_loss, avg_dev_err, end - start)
+	
+	print "Best model at epoch: %i with dev error: %f" % (best_epoch, best_val_err)
 	
