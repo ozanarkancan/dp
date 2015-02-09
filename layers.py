@@ -75,7 +75,7 @@ class Layer(object):
 		self.d_output = T.dot(d_input, self.W) + self.b
 
 		if activation == "relu":
-			act = lambda x : x * (x > 0)
+			act = lambda x : x * (x > 1e-6)
 		elif activation == "tanh":
 			act = T.tanh
 		elif activation == "sigmoid":

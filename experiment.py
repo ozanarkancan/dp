@@ -5,6 +5,8 @@ import argparse
 from layers import *
 from optim import *
 import time
+import cPickle
+import os
 
 def get_arg_parser():
 	parser = argparse.ArgumentParser(prog="experiment")
@@ -14,6 +16,8 @@ def get_arg_parser():
 	parser.add_argument("--reg", default="None", help="regularization l1, l2, dropout")
 	parser.add_argument("--hidden", default=[20000], nargs='+', type=int, help="number of units in hidden layer(s)")
 	parser.add_argument("--epoch", default=1, type=int, help="number of epochs")
+	parser.add_argument("--lr", default=0.002, type=float, help="learning rate")
+	parser.add_argument("--patience", default=25, type=int, help="stopping criteria")
 
 	return parser
 
@@ -31,6 +35,20 @@ def shared_dataset(data_xy):
 			)
 
 	return shared_x, T.cast(shared_y, 'int32')
+
+def save(params):
+	filename = os.path.realpath('.') + "/dp/save/net.save"
+	f = file(filename, 'wb')
+	for p in params:
+		cPickle.dump(p.get_value(), f, protocol=cPickle.HIGHEST_PROTOCOL)
+	f.close()
+
+def load(params):
+	filename = os.path.realpath('.') + "/dp/save/net.save"
+        f = file(filename, 'rb')
+	for p in params:
+		p.set_value(cPickle.load(f))
+	f.close()
 
 if __name__ == "__main__":
 	parser = get_arg_parser()
@@ -98,12 +116,11 @@ if __name__ == "__main__":
 	grads = T.grad(d_loss, params)
 
 	if opt == "rmsprop":
-		updates = rmsprop(params, grads)
+		updates = rmsprop(params, grads, lr = args["lr"])
 	elif opt == "adagrad":
-		print "adagrad"
-		updates = adagrad(params, grads)
+		updates = adagrad(params, grads, lr = args["lr"])
 	else:
-		updates = sgd(params, grads)
+		updates = sgd(params, grads, lr = args["lr"])
 
 	train_model = theano.function(
 		inputs = [x, y],
@@ -118,6 +135,10 @@ if __name__ == "__main__":
 
 	best_epoch = 0
 	best_val_err = 1
+
+	nonimprovement = 0
+
+	save(params)
 
 	for i in xrange(epochs):
 		start = time.time()
@@ -152,7 +173,14 @@ if __name__ == "__main__":
 		if avg_dev_err < best_val_err:
 			best_val_err = avg_dev_err
 			best_epoch = i + 1
+			nonimprovement = 0
+			save(params)
+		else:
+			nonimprovement += 1
 		print "Epoch: %i\ntrain loss: %f\ntrain error: %f\ndev loss: %f\ndev error: %f\nRunning Time: %f seconds\n" % (i + 1, avg_trn_loss, avg_trn_err, avg_dev_loss, avg_dev_err, end - start)
+		
+		if nonimprovement == args["patience"]:
+			break
 	
 	print "Best model at epoch: %i with dev error: %f" % (best_epoch, best_val_err)
 	
