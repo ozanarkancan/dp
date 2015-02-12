@@ -7,13 +7,12 @@ from optim import *
 import time
 import cPickle
 import os
-from dnet import *
 
 def get_arg_parser():
 	parser = argparse.ArgumentParser(prog="experiment")
 	parser.add_argument("--data_path", default="/home/can/data/dp/archybrid_conllWSJToken_wikipedia2MUNK-100_fv021a_xy.mat", help="data path")
 	parser.add_argument("--minibatch", default=128, type=int, help="minibatch size")
-	parser.add_argument("--opt", default="sgd", help="optimization type sgd, rmsprop, adagrad, adam")
+	parser.add_argument("--opt", default="sgd", help="optimization type sgd, rmsprop, adagrad")
 	parser.add_argument("--reg", default="dropout", help="regularization l1, l2, dropout")
 	parser.add_argument("--hidden", default=[20000], nargs='+', type=int, help="number of units in hidden layer(s)")
 	parser.add_argument("--epoch", default=1, type=int, help="number of epochs")
@@ -81,21 +80,31 @@ if __name__ == "__main__":
 	x = T.matrix('x')
 	y = T.ivector('y')
 	
-	dnet = DNET(num_classes)
-	dnet.add_input_layer(x, dropout_rate=0.7)
-	dnet.add_hidden_layer(x_trn.shape[1], hidden[0], dropout_rate=0.3)
+	rng = np.random.RandomState()
+	srng = T.shared_randomstreams.RandomStreams(rng.randint(999999))
+
+	layers = []
+
+	input_layer = InputLayer(x, srng)
+
+	layer1 = Layer(input_layer.output, input_layer.d_output, x_trn.shape[1], hidden[0], srng)
+	layers.append(layer1)
 
 	for i in range(len(hidden) - 1):
-		dnet.add_hidden_layer(hidden[i], hidden[i + 1], dropout_rate=0.3)
+		layer = Layer(layers[-1].output, layers[-1].d_output, layers[-1].n_out, hidden[i + 1], srng)
+		layers.append(layer)
 	
-	dnet.connect_output()
+	output_layer = OutputLayer(layers[-1].output, layers[-1].d_output, layers[-1].n_out, num_classes)
+	layers.append(output_layer)
 
-	params = dnet.get_params()
+	params = []
+	for l in layers:
+		params += l.params
 
-	d_loss = dnet.o_layer.d_loss(y)
-	d_error = dnet.o_layer.d_error(y)
-	loss = dnet.o_layer.loss(y)
-	error = dnet.o_layer.error(y)
+	d_loss = layers[-1].d_loss(y)
+	d_error = layers[-1].d_error(y)
+	loss = layers[-1].loss(y)
+	error = layers[-1].error(y)
 
 	print "...building the model"
 	
@@ -110,8 +119,6 @@ if __name__ == "__main__":
 		updates = rmsprop(params, grads, lr = args["lr"])
 	elif opt == "adagrad":
 		updates = adagrad(params, grads, lr = args["lr"])
-	elif opt == "adam":
-		updates = adam(params, grads)
 	else:
 		updates = sgd(params, grads, lr = args["lr"])
 

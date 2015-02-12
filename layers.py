@@ -1,11 +1,16 @@
 import numpy as np
 import theano
 import theano.tensor as T
-from theano.ifelse import ifelse
 
 def dropout(input, srng, dropout_rate):
+	scale = 1.0 / (1 - dropout_rate)
 	mask = srng.binomial(n=1, p=(1 - dropout_rate), size=input.shape)
-	d_output = input * T.cast(mask, theano.config.floatX)
+	d_output = input * T.cast(mask, theano.config.floatX) * scale
+	return d_output
+
+def fast_dropout(input, srng):
+	mask = srng.normal(size=input.shape, avg = 1., dtype=theano.config.floatX)
+	d_output = input * mask
 	return d_output
 
 def initialize_weights(n_in, n_out):
@@ -32,6 +37,8 @@ class InputLayer(object):
 	def __init__(self, input, srng, dropout_rate=0.5):
 		self.output = input * (1 - dropout_rate)
 		self.d_output = dropout(input, srng, dropout_rate)
+		#self.d_output = fast_dropout(input, srng)
+		self.params = None
 
 class OutputLayer(object):
 	def __init__(self, input, d_input, n_in, n_out, activation="softmax", loss_type="nll"):
@@ -87,6 +94,7 @@ class Layer(object):
 		self.d_output = self.d_output if activation is None else act(self.d_output)
 
 		self.d_output = dropout(self.d_output, srng, dropout_rate)
+		#self.d_output = fast_dropout(self.d_output, srng)
 		self.output = self.output * (1 - dropout_rate)
 
 		self.params = [self.W, self.b]
