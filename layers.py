@@ -3,9 +3,8 @@ import theano
 import theano.tensor as T
 
 def dropout(input, srng, dropout_rate):
-	scale = 1.0 / (1 - dropout_rate)
-	mask = srng.binomial(n=1, p=(1 - dropout_rate), size=input.shape)
-	d_output = input * T.cast(mask, theano.config.floatX) * scale
+	retain = 1 - dropout_rate
+	d_output = input / retain * srng.binomial(input.shape, p=retain, dtype='int32').astype('float32')
 	return d_output
 
 def fast_dropout(input, srng):
@@ -94,7 +93,6 @@ class Layer(object):
 		self.d_output = self.d_output if activation is None else act(self.d_output)
 
 		self.d_output = dropout(self.d_output, srng, dropout_rate)
-		#self.d_output = fast_dropout(self.d_output, srng)
 		self.output = self.output * (1 - dropout_rate)
 
 		self.params = [self.W, self.b]

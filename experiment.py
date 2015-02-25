@@ -83,10 +83,10 @@ if __name__ == "__main__":
 	
 	dnet = DNET(num_classes)
 	dnet.add_input_layer(x, dropout_rate=0.7)
-	dnet.add_hidden_layer(x_trn.shape[1], hidden[0], dropout_rate=0.3)
+	dnet.add_hidden_layer(x_trn.shape[1], hidden[0], dropout_rate=0.5)
 
 	for i in range(len(hidden) - 1):
-		dnet.add_hidden_layer(hidden[i], hidden[i + 1], dropout_rate=0.3)
+		dnet.add_hidden_layer(hidden[i], hidden[i + 1], dropout_rate=0.5)
 	
 	dnet.connect_output()
 
