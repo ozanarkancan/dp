@@ -19,6 +19,7 @@ def get_arg_parser():
 	parser.add_argument("--epoch", default=1, type=int, help="number of epochs")
 	parser.add_argument("--lr", default=0.002, type=float, help="learning rate")
 	parser.add_argument("--patience", default=25, type=int, help="stopping criteria")
+	parser.add_argument("--drate", default=[0.5, 0.5], nargs='+', type=float, help="dropout rate")
 
 	return parser
 
@@ -61,6 +62,7 @@ if __name__ == "__main__":
 	reg = args['reg']
 	hidden = args['hidden']
 	epochs = args['epoch']
+	drates = args['drate']
 
 	print "Parameters:"
 	print args
@@ -82,11 +84,11 @@ if __name__ == "__main__":
 	y = T.ivector('y')
 	
 	dnet = DNET(num_classes)
-	dnet.add_input_layer(x, dropout_rate=0.7)
-	dnet.add_hidden_layer(x_trn.shape[1], hidden[0], dropout_rate=0.5)
+	dnet.add_input_layer(x, dropout_rate=drates[0])
+	dnet.add_hidden_layer(x_trn.shape[1], hidden[0], dropout_rate=drates[1])
 
 	for i in range(len(hidden) - 1):
-		dnet.add_hidden_layer(hidden[i], hidden[i + 1], dropout_rate=0.5)
+		dnet.add_hidden_layer(hidden[i], hidden[i + 1], dropout_rate=drates[i + 2])
 	
 	dnet.connect_output()
 

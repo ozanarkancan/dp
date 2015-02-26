@@ -3,8 +3,11 @@ import theano
 import theano.tensor as T
 
 def dropout(input, srng, dropout_rate):
-	retain = 1 - dropout_rate
-	d_output = input / retain * srng.binomial(input.shape, p=retain, dtype='int32').astype('float32')
+	if dropout_rate > 0:
+		retain = 1 - dropout_rate
+		d_output = input * srng.binomial(input.shape, p=retain, dtype='int32').astype('float32')
+	else:
+		d_output = input
 	return d_output
 
 def fast_dropout(input, srng):
