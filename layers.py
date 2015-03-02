@@ -5,7 +5,7 @@ import theano.tensor as T
 def dropout(input, srng, dropout_rate):
 	if dropout_rate > 0:
 		retain = 1 - dropout_rate
-		d_output = input * srng.binomial(input.shape, p=retain, dtype='int32').astype('float32')
+		d_output = (input / retain) * srng.binomial(input.shape, p=retain, dtype='int32').astype('float32')
 	else:
 		d_output = input
 	return d_output
@@ -96,6 +96,6 @@ class Layer(object):
 		self.d_output = self.d_output if activation is None else act(self.d_output)
 
 		self.d_output = dropout(self.d_output, srng, dropout_rate)
-		self.output = self.output * (1 - dropout_rate)
+		self.output = self.output# * (1 - dropout_rate)
 
 		self.params = [self.W, self.b]
