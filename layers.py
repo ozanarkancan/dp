@@ -37,9 +37,8 @@ def initialize_weights(n_in, n_out):
 
 class InputLayer(object):
 	def __init__(self, input, srng, dropout_rate=0.5):
-		self.output = input * (1 - dropout_rate)
+		self.output = input
 		self.d_output = dropout(input, srng, dropout_rate)
-		#self.d_output = fast_dropout(input, srng)
 		self.params = None
 
 class OutputLayer(object):
