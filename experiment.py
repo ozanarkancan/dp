@@ -196,7 +196,17 @@ if __name__ == "__main__":
         avg_dev_loss = np.mean(dev_losses)
 
         if args["exp"] == "ner":
-            tst_err, tst_loss = test_model(x_tst, y_tst.reshape(y_tst.shape[0], ))
+            n_tst_batches = x_tst.shape[0] / ms
+            errs = [test_model(x_tst[index * ms : (index + 1) * ms, :],\
+                y_tst[index * ms : (index + 1) * ms, :].reshape(ms, )) for index in xrange(n_tst_batches)]
+            tst_acc_errs = []
+            tst_losses = []
+            for e in errs:
+                tst_acc_errs.append(e[0])
+                tst_losses.append(e[1])
+            
+            avg_tst_err = np.mean(tst_acc_errs)
+            avg_tst_loss = np.mean(tst_losses)
         
         end = time.time()
         
@@ -209,7 +219,7 @@ if __name__ == "__main__":
             nonimprovement += 1
         print "Epoch: %i\ntrain loss: %f\ntrain error: %f\ndev loss: %f\ndev error: %f\nRunning Time: %f seconds\n" % (i + 1, avg_trn_loss, avg_trn_err, avg_dev_loss, avg_dev_err, end - start)
         if args["exp"] == "ner":
-            print "tst loss: %f\ntst error: %f\n" % (tst_loss, tst_err)
+            print "tst loss: %f\ntst error: %f\n" % (avg_tst_loss, avg_tst_err)
         
         if nonimprovement == args["patience"]:
             break
